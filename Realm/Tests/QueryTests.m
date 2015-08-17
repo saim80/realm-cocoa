@@ -508,8 +508,9 @@
     // LinkList equality is unsupport since the semantics are unclear
     XCTAssertThrows(([ArrayOfAllTypesObject objectsWhere:@"ANY array = array"]));
 
-    // subquery
-    XCTAssertThrows(([ArrayOfAllTypesObject objectsWhere:@"SUBQUERY(array, $obj, $obj.intCol = 5).@count > 1"]));
+    // Unsupported variants of subqueries.
+    RLMAssertThrowsWithReasonMatching(([ArrayOfAllTypesObject objectsWhere:@"SUBQUERY(array, $obj, $obj.intCol = 5).@count == array.@count"]), @"SUBQUERY.*compared with a constant number");
+    RLMAssertThrowsWithReasonMatching(([ArrayOfAllTypesObject objectsWhere:@"SUBQUERY(array, $obj, $obj.intCol = 5) == 0"]), @"SUBQUERY.*immediately followed by .@count");
 }
 
 - (void)testPredicateMisuse
@@ -1809,6 +1810,25 @@
                                       @"Operator 'BEGINSWITH' is not supported .* right side");
     RLMAssertThrowsWithReasonMatching([self.queryObjectClass objectsWhere:@"'Tuba' ENDSWITH string1"].count,
                                       @"Operator 'ENDSWITH' is not supported .* right side");
+}
+
+- (void)testSubqueries
+{
+    RLMRealm *realm = [RLMRealm defaultRealm];
+
+    [realm beginWriteTransaction];
+    [CompanyObject createInRealm:realm
+                       withValue:@[@"first company", @[@{@"name": @"John", @"age": @30, @"hired": @NO},
+                                                       @{@"name": @"Jill",  @"age": @40, @"hired": @YES},
+                                                       @{@"name": @"Joe",  @"age": @40, @"hired": @YES}]]];
+    [CompanyObject createInRealm:realm
+                       withValue:@[@"second company", @[@{@"name": @"Bill", @"age": @35, @"hired": @YES},
+                                                        @{@"name": @"Don",  @"age": @45, @"hired": @NO},
+                                                        @{@"name": @"Tim",  @"age": @60, @"hired": @NO}]]];
+    [realm commitWriteTransaction];
+
+    XCTAssertEqual(1U, [CompanyObject objectsWhere:@"SUBQUERY(employees, $employee, $employee.age > 30 AND $employee.hired = FALSE).@count > 0"].count);
+    XCTAssertEqual(2U, [CompanyObject objectsWhere:@"SUBQUERY(employees, $employee, $employee.age < 30 AND $employee.hired = TRUE).@count == 0"].count);
 }
 
 @end
