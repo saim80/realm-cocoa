@@ -64,6 +64,10 @@
 		3F7556661BE94C550058BC7E /* realm_coordinator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3F7556641BE94C550058BC7E /* realm_coordinator.cpp */; };
 		3F7556671BE94C550058BC7E /* realm_coordinator.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3F7556651BE94C550058BC7E /* realm_coordinator.hpp */; };
 		3F7556681BE94C5F0058BC7E /* realm_coordinator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3F7556641BE94C550058BC7E /* realm_coordinator.cpp */; };
+		3F7556791BE9804B0058BC7E /* cached_realm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3F7556771BE9804B0058BC7E /* cached_realm.cpp */; };
+		3F75567A1BE9804B0058BC7E /* cached_realm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3F7556771BE9804B0058BC7E /* cached_realm.cpp */; };
+		3F75567B1BE9804B0058BC7E /* cached_realm.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3F7556781BE9804B0058BC7E /* cached_realm.hpp */; };
+		3F75567C1BE9804B0058BC7E /* cached_realm.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3F7556781BE9804B0058BC7E /* cached_realm.hpp */; };
 		3F8DCA7519930FCB0008BD7F /* SwiftTestObjects.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F8D90B196CB8DD00475368 /* SwiftTestObjects.swift */; };
 		3F8DCA7619930FCB0008BD7F /* SwiftArrayPropertyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E82FA60A195632F20043A3C3 /* SwiftArrayPropertyTests.swift */; };
 		3F8DCA7719930FCB0008BD7F /* SwiftArrayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E82FA60B195632F20043A3C3 /* SwiftArrayTests.swift */; };
@@ -458,6 +462,8 @@
 		3F75566A1BE94CCC0058BC7E /* results.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = results.hpp; path = ObjectStore/results.hpp; sourceTree = "<group>"; };
 		3F7556641BE94C550058BC7E /* realm_coordinator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = realm_coordinator.cpp; path = ObjectStore/impl/realm_coordinator.cpp; sourceTree = "<group>"; };
 		3F7556651BE94C550058BC7E /* realm_coordinator.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = realm_coordinator.hpp; path = ObjectStore/impl/realm_coordinator.hpp; sourceTree = "<group>"; };
+		3F7556771BE9804B0058BC7E /* cached_realm.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cached_realm.cpp; path = ObjectStore/impl/apple/cached_realm.cpp; sourceTree = "<group>"; };
+		3F7556781BE9804B0058BC7E /* cached_realm.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = cached_realm.hpp; path = ObjectStore/impl/apple/cached_realm.hpp; sourceTree = "<group>"; };
 		3FAE25511B8CEBBE00D01405 /* object_store.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = object_store.cpp; path = ObjectStore/object_store.cpp; sourceTree = "<group>"; };
 		3FAE25521B8CEBBE00D01405 /* object_store.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = object_store.hpp; path = ObjectStore/object_store.hpp; sourceTree = "<group>"; };
 		3FAE25531B8CEBBE00D01405 /* shared_realm.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = shared_realm.cpp; path = ObjectStore/shared_realm.cpp; sourceTree = "<group>"; };
@@ -679,6 +685,8 @@
 		3F2118A71B97CBAD005A4CFE /* Apple */ = {
 			isa = PBXGroup;
 			children = (
+				3F7556771BE9804B0058BC7E /* cached_realm.cpp */,
+				3F7556781BE9804B0058BC7E /* cached_realm.hpp */,
 				3F2118A81B97CBE1005A4CFE /* external_commit_helper.cpp */,
 				3F2118A91B97CBE1005A4CFE /* external_commit_helper.hpp */,
 			);
@@ -1003,6 +1011,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5D659EA61BE04556006515A0 /* binding_context.hpp in Headers */,
+				3F75567B1BE9804B0058BC7E /* cached_realm.hpp in Headers */,
 				5D659EA01BE04556006515A0 /* external_commit_helper.hpp in Headers */,
 				5D659EA11BE04556006515A0 /* index_set.hpp in Headers */,
 				5D659EA21BE04556006515A0 /* object_schema.hpp in Headers */,
@@ -1064,6 +1073,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5DD755A41BE056DE002800DA /* binding_context.hpp in Headers */,
+				3F75567C1BE9804B0058BC7E /* cached_realm.hpp in Headers */,
 				5DD7559E1BE056DE002800DA /* external_commit_helper.hpp in Headers */,
 				5DD7559F1BE056DE002800DA /* index_set.hpp in Headers */,
 				5DD755A01BE056DE002800DA /* object_schema.hpp in Headers */,
@@ -1565,6 +1575,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3F7556791BE9804B0058BC7E /* cached_realm.cpp in Sources */,
 				5D659E811BE04556006515A0 /* external_commit_helper.cpp in Sources */,
 				5D659E821BE04556006515A0 /* index_set.cpp in Sources */,
 				5D659E831BE04556006515A0 /* object_schema.cpp in Sources */,
@@ -1654,6 +1665,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3F75567A1BE9804B0058BC7E /* cached_realm.cpp in Sources */,
 				5DD7557F1BE056DE002800DA /* external_commit_helper.cpp in Sources */,
 				5DD755801BE056DE002800DA /* index_set.cpp in Sources */,
 				5DD755811BE056DE002800DA /* object_schema.cpp in Sources */,
