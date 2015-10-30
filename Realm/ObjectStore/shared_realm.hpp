@@ -19,7 +19,10 @@
 #ifndef REALM_REALM_HPP
 #define REALM_REALM_HPP
 
+#include <realm/handover_defs.hpp>
+
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -40,8 +43,7 @@ namespace realm {
         class RealmCoordinator;
     }
 
-    class Realm : public std::enable_shared_from_this<Realm>
-    {
+    class Realm : public std::enable_shared_from_this<Realm> {
       public:
         typedef std::function<void(SharedRealm old_realm, SharedRealm realm)> MigrationFunction;
 
@@ -133,6 +135,8 @@ namespace realm {
 
         // FIXME private
         Group *read_group();
+
+        friend class _impl::RealmCoordinator;
     };
 
     class RealmFileException : public std::runtime_error {
