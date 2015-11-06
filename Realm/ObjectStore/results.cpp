@@ -45,6 +45,7 @@ Results::Results(SharedRealm r, Query q, SortOrder s)
 , m_sort(std::move(s))
 , m_mode(Mode::Query)
 {
+    REALM_ASSERT(m_table);
 }
 
 Results::Results(SharedRealm r, Table& table)
@@ -52,6 +53,7 @@ Results::Results(SharedRealm r, Table& table)
 , m_table(&table)
 , m_mode(Mode::Table)
 {
+    REALM_ASSERT(m_table);
 }
 
 Results::Results(SharedRealm r, SortOrder s, TableView tv)
@@ -61,6 +63,7 @@ Results::Results(SharedRealm r, SortOrder s, TableView tv)
 , m_sort(std::move(s))
 , m_mode(Mode::TableView)
 {
+    REALM_ASSERT(m_table);
 }
 
 Results::~Results()
