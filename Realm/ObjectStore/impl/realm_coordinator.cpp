@@ -31,12 +31,13 @@
 #include <realm/table_view.hpp>
 
 #include <cassert>
+#include <unordered_map>
 
 using namespace realm;
 using namespace realm::_impl;
 
 static std::mutex s_coordinator_mutex;
-static std::map<std::string, std::weak_ptr<RealmCoordinator>> s_coordinators_per_path;
+static std::unordered_map<std::string, std::weak_ptr<RealmCoordinator>> s_coordinators_per_path;
 
 std::shared_ptr<RealmCoordinator> RealmCoordinator::get_coordinator(StringData path)
 {
