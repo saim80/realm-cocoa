@@ -47,7 +47,7 @@ public:
 
     bool expired() const { return m_realm.expired(); }
 
-    // Asyncronously call notify() on the Realm on the appropriate thread
+    // Asynchronously call notify() on the Realm on the appropriate thread
     void notify();
 
 private:

@@ -54,7 +54,7 @@ public:
     uint64_t get_schema_version() const noexcept { return m_config.schema_version; }
     const std::string& get_path() const noexcept { return m_config.path; }
 
-    // Asyncronously call notify() on every Realm instance for this coordinator's
+    // Asynchronously call notify() on every Realm instance for this coordinator's
     // path, including those in other processes
     void send_commit_notifications();
 
