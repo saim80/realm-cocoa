@@ -56,6 +56,8 @@
 		29B7FDFB1C0DE8100023224E /* fileformat-pre-null.realm in Resources */ = {isa = PBXBuildFile; fileRef = 29B7FDF71C0DE76B0023224E /* fileformat-pre-null.realm */; };
 		29B7FDFC1C0DE8110023224E /* fileformat-pre-null.realm in Resources */ = {isa = PBXBuildFile; fileRef = 29B7FDF71C0DE76B0023224E /* fileformat-pre-null.realm */; };
 		29EDB8E41A7708E700458D80 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E8839B2D19E31FD90047B1A8 /* main.m */; };
+		3F0A804A1C10F19B00C0880B /* cached_realm_base.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3F0A80471C10F19B00C0880B /* cached_realm_base.hpp */; };
+		3F0A804B1C10F19B00C0880B /* cached_realm_base.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3F0A80471C10F19B00C0880B /* cached_realm_base.hpp */; };
 		3F1F47821B9612B300CD99A3 /* KVOTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3F0F029D1B6FFE610046A4D5 /* KVOTests.mm */; };
 		3F1F47831B9656B900CD99A3 /* KVOTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3F0F029D1B6FFE610046A4D5 /* KVOTests.mm */; };
 		3F75566B1BE94CCC0058BC7E /* results.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3F7556691BE94CCC0058BC7E /* results.cpp */; };
@@ -447,6 +449,7 @@
 		29EDB8E51A7710B700458D80 /* RLMResults_Private.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RLMResults_Private.h; sourceTree = "<group>"; };
 		29EDB8E91A7712E500458D80 /* RLMObjectSchema_Private.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RLMObjectSchema_Private.h; sourceTree = "<group>"; };
 		3F04EA2D1992BEE400C2CE2E /* PerformanceTests.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PerformanceTests.m; sourceTree = "<group>"; };
+		3F0A80471C10F19B00C0880B /* cached_realm_base.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = cached_realm_base.hpp; path = ObjectStore/impl/cached_realm_base.hpp; sourceTree = "<group>"; };
 		3F0F029D1B6FFE610046A4D5 /* KVOTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = KVOTests.mm; sourceTree = "<group>"; };
 		3F0F02AC1B6FFF3D0046A4D5 /* RLMObservation.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = RLMObservation.hpp; sourceTree = "<group>"; };
 		3F0F02AD1B6FFF3D0046A4D5 /* RLMObservation.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = RLMObservation.mm; sourceTree = "<group>"; };
@@ -707,6 +710,7 @@
 				3F2118A71B97CBAD005A4CFE /* Apple */,
 				3F75566E1BE94D0C0058BC7E /* async_query.cpp */,
 				3F75566F1BE94D0C0058BC7E /* async_query.hpp */,
+				3F0A80471C10F19B00C0880B /* cached_realm_base.hpp */,
 				3F7556641BE94C550058BC7E /* realm_coordinator.cpp */,
 				3F7556651BE94C550058BC7E /* realm_coordinator.hpp */,
 				3F1F47891B97ABA300CD99A3 /* transact_log_handler.cpp */,
@@ -1024,6 +1028,7 @@
 				3F7556711BE94D0C0058BC7E /* async_query.hpp in Headers */,
 				5D659EA61BE04556006515A0 /* binding_context.hpp in Headers */,
 				3F75567B1BE9804B0058BC7E /* cached_realm.hpp in Headers */,
+				3F0A804A1C10F19B00C0880B /* cached_realm_base.hpp in Headers */,
 				5D659EA01BE04556006515A0 /* external_commit_helper.hpp in Headers */,
 				5D659EA11BE04556006515A0 /* index_set.hpp in Headers */,
 				5D659EA21BE04556006515A0 /* object_schema.hpp in Headers */,
@@ -1086,6 +1091,7 @@
 			files = (
 				5DD755A41BE056DE002800DA /* binding_context.hpp in Headers */,
 				3F75567C1BE9804B0058BC7E /* cached_realm.hpp in Headers */,
+				3F0A804B1C10F19B00C0880B /* cached_realm_base.hpp in Headers */,
 				5DD7559E1BE056DE002800DA /* external_commit_helper.hpp in Headers */,
 				5DD7559F1BE056DE002800DA /* index_set.hpp in Headers */,
 				5DD755A01BE056DE002800DA /* object_schema.hpp in Headers */,
