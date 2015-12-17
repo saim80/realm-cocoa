@@ -474,6 +474,7 @@ case "$COMMAND" in
         ;;
 
     "tvos-swift")
+        sh build.sh tvos
         build_combined RealmSwift RealmSwift appletvos appletvsimulator
         exit 0
         ;;
