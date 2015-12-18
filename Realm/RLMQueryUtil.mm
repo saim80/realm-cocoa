@@ -83,13 +83,13 @@ struct TrueExpression : realm::Expression {
 
         return realm::not_found;
     }
-    void set_table() override {}
+    void set_table(const Table*) override {}
     const Table* get_table() const override { return nullptr; }
 };
 
 struct FalseExpression : realm::Expression {
     size_t find_first(size_t, size_t) const override { return realm::not_found; }
-    void set_table() override {}
+    void set_table(const Table*) override {}
     const Table* get_table() const override { return nullptr; }
 };
 

@@ -7,11 +7,16 @@ x.x.x Release notes (yyyy-MM-dd)
 
 ### Enhancements
 
-* None.
+* Assertions have been disabled in Release builds of the core library. This
+  cuts the size of the built Realm framework by ~150 KB and makes nearly all
+  operations modestly faster.
 
 ### Bugfixes
 
-* None.
+* Fix incorrect results from aggregate methods on `Results`/`RLMResults` after
+  objects which were previously in the results are deleted.
+* Fix a crash when adding a new property to an existing class with over a
+  million objects in the Realm.
 
 0.97.0 Release notes (2015-12-17)
 =============================================================
