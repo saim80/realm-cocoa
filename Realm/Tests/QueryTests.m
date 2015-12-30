@@ -1831,6 +1831,79 @@
     XCTAssertEqual(2U, [CompanyObject objectsWhere:@"SUBQUERY(employees, $employee, $employee.age < 30 AND $employee.hired = TRUE).@count == 0"].count);
 }
 
+- (void)testKeyPathSubquery
+{
+    RLMRealm *realm = [RLMRealm defaultRealm];
+    
+    NSDate *date1 = [NSDate date];
+    NSDate *date2 = [date1 dateByAddingTimeInterval:1];
+    NSDate *date3 = [date2 dateByAddingTimeInterval:1];
+    
+    [realm beginWriteTransaction];
+    
+    StringObject *stringObj0 = [StringObject createInRealm:realm withValue:@[@"string0"]];
+    StringObject *stringObj1 = [StringObject createInRealm:realm withValue:@[@"string1"]];
+    StringObject *stringObj2 = [StringObject createInRealm:realm withValue:@[@"string2"]];
+    
+    AllTypesObject *obj0 = [AllTypesObject createInRealm:realm withValue:@[@YES, @1, @1.0f, @1.0, @"a", [@"a" dataUsingEncoding:NSUTF8StringEncoding], date1, @YES, @1LL, @1, stringObj0]];
+    AllTypesObject *obj1 = [AllTypesObject createInRealm:realm withValue:@[@YES, @2, @2.0f, @2.0, @"b", [@"b" dataUsingEncoding:NSUTF8StringEncoding], date2, @YES, @2LL, @"mixed", stringObj1]];
+    AllTypesObject *obj2 = [AllTypesObject createInRealm:realm withValue:@[@NO, @3, @3.0f, @3.0, @"c", [@"c" dataUsingEncoding:NSUTF8StringEncoding], date3, @YES, @3LL, @"mixed", stringObj0]];
+    AllTypesObject *obj3 = [AllTypesObject createInRealm:realm withValue:@[@NO, @3, @3.0f, @3.0, @"c", [@"c" dataUsingEncoding:NSUTF8StringEncoding], date3, @YES, @3LL, @"mixed", stringObj2]];
+    
+    [ArrayOfAllTypesObject createInDefaultRealmWithValue:@[@[obj0, obj0]]];
+    [ArrayOfAllTypesObject createInDefaultRealmWithValue:@[@[obj1]]];
+    [ArrayOfAllTypesObject createInDefaultRealmWithValue:@[@[obj0, obj2, obj3]]];
+    
+    [realm commitWriteTransaction];
+    
+    XCTAssertEqual(2U, [ArrayOfAllTypesObject objectsWhere:@"SUBQUERY(array, $object, $object.boolCol = YES AND $object.objectCol.stringCol = 'string0').@count > 0"].count);
+    XCTAssertEqual(1U, [ArrayOfAllTypesObject objectsWhere:@"SUBQUERY(array, $object, $object.boolCol = YES AND $object.objectCol.stringCol = 'string0').@count > 1"].count);
+    
+    // Correct predicate parsing
+    NSComparisonPredicate *passPredicate = (NSComparisonPredicate *)[NSPredicate predicateWithFormat:@"SUBQUERY(array, $object, $object.boolCol = YES AND $object.objectCol.stringCol = 'string0').@count > 0"];
+    
+    // Correct predicate parsing with substitution through NSString
+    NSString *predicateString = [NSString stringWithFormat:@"SUBQUERY(array, $object, $object.boolCol = YES AND %@.%@ = 'string0').@count > 0",@"$object",@"objectCol.stringCol"];
+    NSComparisonPredicate *pass1Predicate = (NSComparisonPredicate *)[NSPredicate predicateWithFormat:predicateString];
+    
+    // Correct predicate parsing with substitution through NSPredicate without variable
+    NSComparisonPredicate *pass2Predicate = (NSComparisonPredicate *)[NSPredicate predicateWithFormat:@"SUBQUERY(array, $object, $object.boolCol = YES AND $object.%K = 'string0').@count > 0",@"objectCol.stringCol"];
+    
+    // Failed predicate parsing with substitution through NSPredicate with variable
+    NSComparisonPredicate *failPredicate = (NSComparisonPredicate *)[NSPredicate predicateWithFormat:@"SUBQUERY(array, $object, $object.boolCol = YES AND %K.%K = 'string0').@count > 0",@"$object",@"objectCol.stringCol"];
+    
+    // Failed predicate parsing with substitution through NSPredicate with variable
+    NSComparisonPredicate *fail2Predicate = (NSComparisonPredicate *)[NSPredicate predicateWithFormat:@"SUBQUERY(array, $object, $object.boolCol = YES AND %@.%@ = 'string0').@count > 0",@"$object",@"objectCol.stringCol"];
+
+    NSComparisonPredicate *passSubqueryPredicate1 = ((NSCompoundPredicate *)passPredicate.leftExpression.operand.predicate).subpredicates[1];
+    NSComparisonPredicate *pass1SubqueryPredicate1 = ((NSCompoundPredicate *)pass1Predicate.leftExpression.operand.predicate).subpredicates[1];
+    NSComparisonPredicate *pass2SubqueryPredicate1 = ((NSCompoundPredicate *)pass2Predicate.leftExpression.operand.predicate).subpredicates[1];
+    NSComparisonPredicate *failSubqueryPredicate1 = ((NSCompoundPredicate *)failPredicate.leftExpression.operand.predicate).subpredicates[1];
+    NSComparisonPredicate *fail2SubqueryPredicate1 = ((NSCompoundPredicate *)fail2Predicate.leftExpression.operand.predicate).subpredicates[1];
+
+    NSExpression *lhsPassSubqueryPredicate1 = passSubqueryPredicate1.leftExpression.arguments[0];
+    NSExpression *lhsPass1SubqueryPredicate1 = pass1SubqueryPredicate1.leftExpression.arguments[0];
+    NSExpression *lhsPass2SubqueryPredicate1 = pass2SubqueryPredicate1.leftExpression.arguments[0];
+    NSExpression *lhsFailSubqueryPredicate1 = failSubqueryPredicate1.leftExpression.arguments[0];
+    NSExpression *lhsFail2SubqueryPredicate1 = fail2SubqueryPredicate1.leftExpression.arguments[0];
+    
+    // The incorrect format string substitution doesn't result in a key path expression
+    XCTAssertThrows(lhsFail2SubqueryPredicate1.keyPath);
+
+    XCTAssertFalse([lhsPassSubqueryPredicate1.keyPath isEqualToString:lhsFailSubqueryPredicate1.keyPath]);
+    XCTAssertFalse([lhsPass1SubqueryPredicate1.keyPath isEqualToString:lhsFailSubqueryPredicate1.keyPath]);
+    XCTAssertFalse([lhsPass2SubqueryPredicate1.keyPath isEqualToString:lhsFailSubqueryPredicate1.keyPath]);
+    
+    XCTAssertTrue([lhsPassSubqueryPredicate1.keyPath isEqualToString:lhsPass1SubqueryPredicate1.keyPath]);
+    XCTAssertTrue([lhsPassSubqueryPredicate1.keyPath isEqualToString:lhsPass2SubqueryPredicate1.keyPath]);
+    XCTAssertTrue([lhsPass1SubqueryPredicate1.keyPath isEqualToString:lhsPass2SubqueryPredicate1.keyPath]);
+    
+    XCTAssertNoThrow([ArrayOfAllTypesObject objectsWithPredicate:passPredicate]);
+    XCTAssertNoThrow([ArrayOfAllTypesObject objectsWithPredicate:pass1Predicate]);
+    XCTAssertNoThrow([ArrayOfAllTypesObject objectsWithPredicate:pass2Predicate]);
+    XCTAssertThrows([ArrayOfAllTypesObject objectsWithPredicate:failPredicate]);
+}
+
 @end
 
 @interface NullQueryTests : QueryTests
