@@ -356,7 +356,7 @@ Results Results::filter(Query&& q) const
     return Results(m_realm, get_query().and_query(std::move(q)), get_sort());
 }
 
-AsyncQueryCancelationToken Results::async(std::function<void (std::exception_ptr)> target)
+void Results::prepare_async()
 {
     if (m_realm->config().read_only) {
         throw InvalidTransactionException("Cannot create asynchronous query for read-only Realms");
@@ -369,7 +369,19 @@ AsyncQueryCancelationToken Results::async(std::function<void (std::exception_ptr
         m_background_query = std::make_shared<_impl::AsyncQuery>(*this);
         _impl::RealmCoordinator::register_query(m_background_query);
     }
+}
+
+AsyncQueryCancelationToken Results::async(std::function<void (std::exception_ptr)> target)
+{
+    prepare_async();
     return {m_background_query, m_background_query->add_callback(std::move(target))};
+}
+
+AsyncQueryCancelationToken Results::async(std::vector<std::vector<size_t>> columns_to_watch,
+                                          std::function<void (std::vector<AsyncQueryChange>, std::exception_ptr)> target)
+{
+    prepare_async();
+    return {m_background_query, m_background_query->add_callback(std::move(columns_to_watch), std::move(target))};
 }
 
 void Results::Internal::set_table_view(Results& results, realm::TableView &&tv)

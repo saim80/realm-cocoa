@@ -26,16 +26,22 @@
 #include <exception>
 #include <mutex>
 #include <functional>
+#include <set>
 #include <thread>
 #include <vector>
 
 namespace realm {
+struct AsyncQueryChange;
+
 namespace _impl {
+    struct ChangeInfo;
 class AsyncQuery {
 public:
     AsyncQuery(Results& target);
     ~AsyncQuery();
 
+    size_t add_callback(std::vector<std::vector<size_t>> columns_to_watch,
+                        std::function<void (std::vector<AsyncQueryChange>, std::exception_ptr)>);
     size_t add_callback(std::function<void (std::exception_ptr)>);
     void remove_callback(size_t token);
 
@@ -43,7 +49,7 @@ public:
     void release_query() noexcept;
 
     // Run/rerun the query if needed
-    void run();
+    void run(std::vector<ChangeInfo> const&);
     // Prepare the handover object if run() did update the TableView
     void prepare_handover();
     // Update the target results from the handover
@@ -84,7 +90,7 @@ private:
     std::exception_ptr m_error;
 
     struct Callback {
-        std::function<void (std::exception_ptr)> fn;
+        std::function<void (std::vector<AsyncQueryChange>, std::exception_ptr)> fn;
         size_t token;
         uint_fast64_t delivered_version;
     };
@@ -94,10 +100,14 @@ private:
     std::mutex m_callback_mutex;
     std::vector<Callback> m_callbacks;
 
+    std::vector<AsyncQueryChange> m_changes;
+
     SharedGroup* m_sg = nullptr;
 
     uint_fast64_t m_handed_over_table_version = -1;
     uint_fast64_t m_delievered_table_version = -1;
+
+    std::vector<size_t> m_handed_over_rows;
 
     // Iteration variable for looping over callbacks
     // remove_callback() updates this when needed
@@ -114,7 +124,8 @@ private:
 
     bool is_for_current_thread() const { return m_thread_id == std::this_thread::get_id(); }
 
-    std::function<void (std::exception_ptr)> next_callback();
+    std::function<void (std::vector<AsyncQueryChange>, std::exception_ptr)> next_callback();
+    size_t next_token();
 };
 
 } // namespace _impl

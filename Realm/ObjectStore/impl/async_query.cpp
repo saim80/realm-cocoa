@@ -43,19 +43,28 @@ AsyncQuery::~AsyncQuery()
     m_realm = nullptr;
 }
 
+size_t AsyncQuery::next_token()
+{
+    size_t token = 0;
+    for (auto& callback : m_callbacks) {
+        if (token <= callback.token) {
+            token = callback.token + 1;
+        }
+    }
+    return token;
+}
+
 size_t AsyncQuery::add_callback(std::function<void (std::exception_ptr)> callback)
 {
-    m_realm->verify_thread();
+    return add_callback({}, [=](std::vector<AsyncQueryChange>, std::exception_ptr error) {
+        callback(error);
+    });
+}
 
-    auto next_token = [=] {
-        size_t token = 0;
-        for (auto& callback : m_callbacks) {
-            if (token <= callback.token) {
-                token = callback.token + 1;
-            }
-        }
-        return token;
-    };
+size_t AsyncQuery::add_callback(std::vector<std::vector<size_t>> columns_to_watch,
+                                std::function<void (std::vector<AsyncQueryChange>, std::exception_ptr)> callback)
+{
+    m_realm->verify_thread();
 
     std::lock_guard<std::mutex> lock(m_callback_mutex);
     auto token = next_token();
@@ -139,7 +148,7 @@ bool AsyncQuery::is_alive() const noexcept
 // destroyed while the background work is running, and to allow removing
 // callbacks from any thread.
 
-void AsyncQuery::run()
+void AsyncQuery::run(std::vector<ChangeInfo> const& modified_rows)
 {
     REALM_ASSERT(m_sg);
 
@@ -153,19 +162,48 @@ void AsyncQuery::run()
 
     REALM_ASSERT(!m_tv.is_attached());
 
+    size_t table_ndx = m_query->get_table()->get_index_in_group();
+
     // If we've run previously, check if we need to rerun
     if (m_initial_run_complete) {
-        // Make an empty tableview from the query to get the table version, since
-        // Query doesn't expose it
-        if (m_query->find_all(0, 0, 0).outside_version() == m_handed_over_table_version) {
+        if (table_ndx > modified_rows.size())
             return;
-        }
+        auto const& changes = modified_rows[table_ndx];
+        if (changes.changed.empty() && changes.moves.empty())
+            return;
     }
+
+    auto const& changes = modified_rows[table_ndx];
 
     m_tv = m_query->find_all();
     if (m_sort) {
         m_tv.sort(m_sort.columnIndices, m_sort.ascending);
     }
+
+    if (!m_initial_run_complete)
+        goto did_change;
+
+    if (m_tv.size() != m_handed_over_rows.size())
+        goto did_change;
+    for (size_t i = 0; i < m_tv.size(); ++i) {
+        auto idx = m_tv[i].get_index();
+        auto it = changes.moves.find(idx);
+        if (it != changes.moves.end())
+            idx = it->second;
+        if (m_handed_over_rows[i] != idx)
+            goto did_change;
+        if (changes.changed.count(idx))
+            goto did_change;
+    }
+
+    m_tv = TableView();
+    return;
+
+
+did_change:
+    m_handed_over_rows.clear();
+    for (size_t i = 0; i < m_tv.size(); ++i)
+        m_handed_over_rows.push_back(m_tv[i].get_index());
 }
 
 void AsyncQuery::prepare_handover()
@@ -241,7 +279,7 @@ void AsyncQuery::call_callbacks()
     REALM_ASSERT(is_for_current_thread());
 
     while (auto fn = next_callback()) {
-        fn(m_error);
+        fn({}, m_error);
     }
 
     if (m_error) {
@@ -252,7 +290,7 @@ void AsyncQuery::call_callbacks()
     }
 }
 
-std::function<void (std::exception_ptr)> AsyncQuery::next_callback()
+std::function<void (std::vector<AsyncQueryChange>, std::exception_ptr)> AsyncQuery::next_callback()
 {
     std::lock_guard<std::mutex> callback_lock(m_callback_mutex);
     for (++m_callback_index; m_callback_index < m_callbacks.size(); ++m_callback_index) {

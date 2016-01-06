@@ -553,5 +553,84 @@ static inline void RLMResultsValidateInWriteTransaction(__unsafe_unretained RLMR
 
     return [[RLMCancellationToken alloc] initWithToken:std::move(token)];
 }
+
+static void RLMPrecondition(bool condition, NSString *format, ...) {
+    if (__builtin_expect(condition, 1)) {
+        return;
+    }
+
+    va_list args;
+    va_start(args, format);
+    NSString *reason = [[NSString alloc] initWithFormat:format arguments:args];
+    va_end(args);
+
+    @throw [NSException exceptionWithName:@"RLMException" reason:reason userInfo:nil];
+}
+
+- (RLMNotificationToken *)addNotificationBlockWatchingKeypaths:(NSArray<NSString *> *)keyPaths
+                                                       changes:(void (^)(RLMResults *, NSArray<RLMObjectChange *> *, NSError *))block {
+    [_realm verifyNotificationsAreSupported];
+
+    std::vector<std::vector<size_t>> column_paths;
+
+    for (NSString *keyPath in keyPaths) {
+        RLMSchema *schema = _realm.schema;
+        RLMObjectSchema *desc = _objectSchema;
+
+        std::vector<size_t> indexes;
+        RLMProperty *prop = nil;
+
+        NSString *prevPath = nil;
+        NSUInteger start = 0, length = keyPath.length, end = NSNotFound;
+        do {
+            end = [keyPath rangeOfString:@"." options:0 range:{start, length - start}].location;
+            NSString *path = [keyPath substringWithRange:{start, end == NSNotFound ? length - start : end - start}];
+            if (prop) {
+                RLMPrecondition(prop.type == RLMPropertyTypeObject || prop.type == RLMPropertyTypeArray,
+                                @"Property '%@' is not a link in object of type '%@'", prevPath, desc.className);
+            }
+            indexes.push_back(prop.column);
+            prop = desc[path];
+            RLMPrecondition(prop, @"Property '%@' not found in object of type '%@'", path, desc.className);
+
+            if (prop.objectClassName) {
+                desc = schema[prop.objectClassName];
+            }
+            prevPath = path;
+            start = end + 1;
+        } while (end != NSNotFound);
+
+        column_paths.push_back(std::move(indexes));
+    }
+
+    auto token = _results.async(move(column_paths), [self, block](std::vector<AsyncQueryChange> changes,
+                                                                  std::exception_ptr err) {
+        if (err) {
+            try {
+                rethrow_exception(err);
+            }
+            catch (...) {
+                NSError *error;
+                RLMRealmTranslateException(&error);
+                block(nil, nil, error);
+            }
+        }
+        else {
+            NSMutableArray *objcChanges = [NSMutableArray new];
+            for (auto change : changes) {
+                auto conv = [[RLMObjectChange alloc] init];
+                conv.oldIndex = change.old_index;
+                conv.newIndex = change.new_index;
+                [objcChanges addObject:conv];
+            }
+            block(self, objcChanges, nil);
+        }
+    });
+
+    return [[RLMCancellationToken alloc] initWithToken:std::move(token)];
+}
 #pragma clang diagnostic pop
+@end
+
+@implementation RLMObjectChange
 @end

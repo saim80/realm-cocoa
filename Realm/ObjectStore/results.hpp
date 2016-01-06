@@ -52,6 +52,11 @@ private:
     size_t m_token;
 };
 
+struct AsyncQueryChange {
+    size_t old_index;
+    size_t new_index;
+};
+
 struct SortOrder {
     std::vector<size_t> columnIndices;
     std::vector<bool> ascending;
@@ -177,6 +182,9 @@ public:
     // and then rerun after each commit (if needed) and redelivered if it changed
     AsyncQueryCancelationToken async(std::function<void (std::exception_ptr)> target);
 
+    AsyncQueryCancelationToken async(std::vector<std::vector<size_t>> columns_to_watch,
+                                     std::function<void (std::vector<AsyncQueryChange>, std::exception_ptr)> target);
+
     bool wants_background_updates() const { return m_wants_background_updates; }
 
     // Helper type to let AsyncQuery update the tableview without giving access
@@ -201,6 +209,8 @@ private:
 
     void validate_read() const;
     void validate_write() const;
+
+    void prepare_async();
 
     template<typename Int, typename Float, typename Double, typename DateTime>
     util::Optional<Mixed> aggregate(size_t column, bool return_none_for_empty,

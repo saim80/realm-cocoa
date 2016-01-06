@@ -23,6 +23,13 @@
 
 #include <realm/string_data.hpp>
 
+#include <map>
+#include <set>
+
+namespace {
+    class TransactLogObserver;
+}
+
 namespace realm {
 class AsyncQueryCallback;
 class ClientHistory;
@@ -34,6 +41,12 @@ namespace _impl {
 class AsyncQuery;
 class CachedRealm;
 class ExternalCommitHelper;
+
+struct ChangeInfo {
+    std::set<size_t> changed;
+    std::map<size_t, size_t> moves; // new row -> original row
+    size_t deletions = 0;
+};
 
 // RealmCoordinator manages the weak cache of Realm instances and communication
 // between per-thread Realm instances for a given file
@@ -112,7 +125,7 @@ private:
     void run_async_queries();
     void open_helper_shared_group();
     void move_new_queries_to_main();
-    void advance_helper_shared_group_to_latest();
+    void advance_helper_shared_group_to_latest(TransactLogObserver&);
     void clean_up_dead_queries();
 };
 

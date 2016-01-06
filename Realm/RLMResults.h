@@ -24,6 +24,11 @@ RLM_ASSUME_NONNULL_BEGIN
 
 @class RLMObject, RLMRealm, RLMNotificationToken;
 
+@interface RLMObjectChange : NSObject
+@property (nonatomic) NSUInteger oldIndex;
+@property (nonatomic) NSUInteger newIndex;
+@end
+
 /**
  RLMResults is an auto-updating container type in Realm returned from object
  queries.
@@ -202,6 +207,10 @@ RLM_ASSUME_NONNULL_BEGIN
  @return A token which must be held for as long as you want query results to be delivered.
  */
 - (RLMNotificationToken *)addNotificationBlock:(void (^)(RLMResults RLM_GENERIC_RETURN *__nullable results, NSError *__nullable error))block;
+
+
+- (RLMNotificationToken *)addNotificationBlockWatchingKeypaths:(NSArray<NSString *> *)keyPaths
+                                                       changes:(void (^)(RLMResults *, NSArray<RLMObjectChange *> *, NSError *))block;
 
 #pragma mark - Aggregating Property Values
 
