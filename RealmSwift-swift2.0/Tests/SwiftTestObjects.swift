@@ -239,8 +239,14 @@ class SwiftPrimaryStringObject: Object {
 class SwiftIndexedPropertiesObject: Object {
     dynamic var stringCol = ""
     dynamic var intCol = 0
+    dynamic var boolCol = false
+    dynamic var dateCol = NSDate()
+
+    dynamic var floatCol: Float = 0.0
+    dynamic var doubleCol: Double = 0.0
+    dynamic var dataCol = NSData()
 
     override class func indexedProperties() -> [String] {
-        return ["stringCol"] // Add "intCol" when integer indexing is supported
+        return ["stringCol", "intCol", "boolCol", "dateCol"]
     }
 }

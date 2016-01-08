@@ -151,6 +151,9 @@ class ObjectSchemaInitializationTests: TestCase {
 
     func testIndexedProperties() {
         XCTAssertTrue(SwiftIndexedPropertiesObject().objectSchema["stringCol"]!.indexed)
+        XCTAssertTrue(SwiftIndexedPropertiesObject().objectSchema["intCol"]!.indexed)
+        XCTAssertTrue(SwiftIndexedPropertiesObject().objectSchema["boolCol"]!.indexed)
+        XCTAssertTrue(SwiftIndexedPropertiesObject().objectSchema["dateCol"]!.indexed)
 
         let unindexibleSchema = RLMObjectSchema(forObjectClass: SwiftObjectWithUnindexibleProperties.self)
         for propName in SwiftObjectWithUnindexibleProperties.indexedProperties() {
