@@ -93,6 +93,7 @@ private:
         std::function<void (std::vector<AsyncQueryChange>, std::exception_ptr)> fn;
         size_t token;
         uint_fast64_t delivered_version;
+        std::vector<std::vector<size_t>> columns_to_watch;
     };
 
     // Currently registered callbacks and a mutex which must always be held
@@ -126,6 +127,8 @@ private:
 
     std::function<void (std::vector<AsyncQueryChange>, std::exception_ptr)> next_callback();
     size_t next_token();
+
+    bool results_did_change(size_t table_ndx, std::vector<ChangeInfo> const& modified_rows) const noexcept;
 };
 
 } // namespace _impl

@@ -589,9 +589,9 @@ static void RLMPrecondition(bool condition, NSString *format, ...) {
                 RLMPrecondition(prop.type == RLMPropertyTypeObject || prop.type == RLMPropertyTypeArray,
                                 @"Property '%@' is not a link in object of type '%@'", prevPath, desc.className);
             }
-            indexes.push_back(prop.column);
             prop = desc[path];
             RLMPrecondition(prop, @"Property '%@' not found in object of type '%@'", path, desc.className);
+            indexes.push_back(prop.column);
 
             if (prop.objectClassName) {
                 desc = schema[prop.objectClassName];

@@ -174,3 +174,121 @@
     }];
 }
 @end
+
+@interface FilteredNotificationTests : RLMTestCase
+@property (nonatomic, strong) RLMNotificationToken *token;
+@property (nonatomic) bool called;
+@end
+
+@implementation FilteredNotificationTests
+- (void)setUp {
+    @autoreleasepool {
+        RLMRealm *realm = [RLMRealm defaultRealm];
+        [realm transactionWithBlock:^{
+            for (int i = 0; i < 10; ++i) {
+                IntObject *io = [IntObject createInDefaultRealmWithValue:@[@(i)]];
+                [ArrayPropertyObject createInDefaultRealmWithValue:@[@"", @[], @[io]]];
+            }
+        }];
+    }
+
+    _token = [self.query addNotificationBlockWatchingKeypaths:@[@"intArray"] changes:^(RLMResults *results,
+                                                                                       NSArray<RLMObjectChange *> *changes,
+                                                                                       NSError *error) {
+        XCTAssertNotNil(results);
+        XCTAssertNil(error);
+        self.called = true;
+        CFRunLoopStop(CFRunLoopGetCurrent());
+    }];
+    CFRunLoopRun();
+}
+
+- (void)tearDown {
+    [_token stop];
+    [super tearDown];
+}
+
+- (RLMResults *)query {
+    return [ArrayPropertyObject objectsWhere:@"ANY intArray.intCol > 0 AND ANY intArray.intCol < 5"];
+}
+
+- (void)runAndWaitForNotification:(void (^)(RLMRealm *))block {
+    _called = false;
+    [self waitForNotification:RLMRealmDidChangeNotification realm:RLMRealm.defaultRealm block:^{
+        RLMRealm *realm = [RLMRealm defaultRealm];
+        [realm transactionWithBlock:^{
+            block(realm);
+        }];
+    }];
+}
+
+- (void)expectNotification:(void (^)(RLMRealm *))block {
+    [self runAndWaitForNotification:block];
+    XCTAssertTrue(_called);
+}
+
+- (void)expectNoNotification:(void (^)(RLMRealm *))block {
+    [self runAndWaitForNotification:block];
+    XCTAssertFalse(_called);
+}
+
+- (void)testInsertObjectMatchingQuery {
+    [self expectNotification:^(RLMRealm *realm) {
+        [ArrayPropertyObject createInRealm:realm withValue:@[@"", @[], [IntObject objectsInRealm:realm where:@"intCol = 3"]]];
+    }];
+}
+
+- (void)testInsertObjectNotMatchingQuery {
+    [self expectNoNotification:^(RLMRealm *realm) {
+        [ArrayPropertyObject createInRealm:realm withValue:@[@"", @[], [IntObject objectsInRealm:realm where:@"intCol = 6"]]];
+    }];
+}
+
+- (void)testModifyObjectMatchingQuery {
+    [self expectNotification:^(RLMRealm *realm) {
+        [[IntObject objectsInRealm:realm where:@"intCol = 3"] setValue:@4 forKey:@"intCol"];
+    }];
+}
+
+- (void)testModifyObjectToNoLongerMatchQuery {
+    [self expectNotification:^(RLMRealm *realm) {
+        [[IntObject objectsInRealm:realm where:@"intCol = 3"] setValue:@5 forKey:@"intCol"];
+    }];
+}
+
+- (void)testModifyObjectNotMatchingQuery {
+    [self expectNoNotification:^(RLMRealm *realm) {
+        [[IntObject objectsInRealm:realm where:@"intCol = 5"] setValue:@6 forKey:@"intCol"];
+    }];
+}
+
+- (void)testModifyObjectToMatchQuery {
+    [self expectNotification:^(RLMRealm *realm) {
+        [[IntObject objectsInRealm:realm where:@"intCol = 5"] setValue:@4 forKey:@"intCol"];
+    }];
+}
+
+- (void)testDeleteObjectMatchingQuery {
+    [self expectNotification:^(RLMRealm *realm) {
+        [realm deleteObjects:[IntObject objectsInRealm:realm where:@"intCol = 4"]];
+    }];
+}
+
+- (void)testDeleteObjectNotMatchingQuery {
+    [self expectNoNotification:^(RLMRealm *realm) {
+        [realm deleteObjects:[IntObject objectsInRealm:realm where:@"intCol = 5"]];
+    }];
+    [self expectNoNotification:^(RLMRealm *realm) {
+        [realm deleteObjects:[IntObject objectsInRealm:realm where:@"intCol = 0"]];
+    }];
+}
+
+- (void)testNonMatchingObjectMovedToIndexOfMatchingRowAndMadeMatching {
+    [self expectNotification:^(RLMRealm *realm) {
+        // Make the last object match the query
+        [[[IntObject allObjectsInRealm:realm] lastObject] setIntCol:3];
+        // Move the now-matching object over a previously matching object
+        [realm deleteObjects:[IntObject objectsInRealm:realm where:@"intCol = 2"]];
+    }];
+}
+@end
