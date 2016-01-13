@@ -102,6 +102,7 @@ private:
     std::vector<Callback> m_callbacks;
 
     std::vector<AsyncQueryChange> m_changes;
+    std::vector<AsyncQueryChange> m_new_changes;
 
     SharedGroup* m_sg = nullptr;
 
@@ -128,7 +129,7 @@ private:
     std::function<void (std::vector<AsyncQueryChange>, std::exception_ptr)> next_callback();
     size_t next_token();
 
-    bool results_did_change(size_t table_ndx, std::vector<ChangeInfo> const& modified_rows) const noexcept;
+    std::vector<AsyncQueryChange> calculate_changes(size_t table_ndx, std::vector<ChangeInfo> const& modified_rows, bool sort) const noexcept;
 };
 
 } // namespace _impl

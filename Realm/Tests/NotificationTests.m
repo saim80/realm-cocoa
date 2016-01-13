@@ -292,3 +292,64 @@
     }];
 }
 @end
+
+@interface ChangesetTests : RLMTestCase
+@property (nonatomic, strong) RLMNotificationToken *token;
+@property (nonatomic, strong) NSArray<RLMObjectChange *> *changes;
+@end
+
+@implementation ChangesetTests
+- (void)stuff:(void (^)(RLMRealm *))block {
+    @autoreleasepool {
+        RLMRealm *realm = [RLMRealm defaultRealm];
+        [realm transactionWithBlock:^{
+            for (int i = 0; i < 10; ++i) {
+                IntObject *io = [IntObject createInDefaultRealmWithValue:@[@(i)]];
+                [ArrayPropertyObject createInDefaultRealmWithValue:@[@"", @[], @[io]]];
+            }
+        }];
+    }
+
+    _token = [self.query addNotificationBlockWatchingKeypaths:@[] changes:^(RLMResults *results,
+                                                                            NSArray<RLMObjectChange *> *changes,
+                                                                            NSError *error) {
+        XCTAssertNotNil(results);
+        XCTAssertNil(error);
+        _changes = changes;
+        CFRunLoopStop(CFRunLoopGetCurrent());
+    }];
+    CFRunLoopRun();
+
+    [self waitForNotification:RLMRealmDidChangeNotification realm:RLMRealm.defaultRealm block:^{
+        RLMRealm *realm = [RLMRealm defaultRealm];
+        [realm transactionWithBlock:^{
+            block(realm);
+        }];
+    }];
+
+    [_token stop];
+}
+
+- (RLMResults *)query {
+    return [IntObject objectsWhere:@"intCol > 0 AND intCol < 5"];
+}
+
+- (void)testDelete {
+    [self stuff:^(RLMRealm *realm) {
+        [realm deleteObjects:[IntObject objectsInRealm:realm where:@"intCol = 2"]];
+    }];
+    XCTAssertEqual(1U, self.changes.count);
+    XCTAssertEqual(1U, self.changes[0].oldIndex);
+    XCTAssertEqual(NSNotFound, self.changes[0].newIndex);
+}
+
+- (void)testInsert {
+    [self stuff:^(RLMRealm *realm) {
+        [IntObject createInRealm:realm withValue:@[@3]];
+    }];
+    XCTAssertEqual(1U, self.changes.count);
+    XCTAssertEqual(NSNotFound, self.changes[0].oldIndex);
+    XCTAssertEqual(4U, self.changes[0].newIndex);
+}
+
+@end

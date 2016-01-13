@@ -148,139 +148,110 @@ bool AsyncQuery::is_alive() const noexcept
 // destroyed while the background work is running, and to allow removing
 // callbacks from any thread.
 
-static void map_moves(size_t& idx, ChangeInfo const& changes)
+static bool map_moves(size_t& idx, ChangeInfo const& changes)
 {
     auto it = changes.moves.find(idx);
-    if (it != changes.moves.end())
+    if (it != changes.moves.end()) {
         idx = it->second;
+        return true;
+    }
+    return false;
 }
 
-static bool check_path(TableRef table, size_t idx, std::vector<size_t> const& path, size_t path_ndx, std::vector<ChangeInfo> const& modified)
+static bool row_did_change(Table& table, size_t idx, std::vector<ChangeInfo> const& modified, int depth = 0)
 {
-    if (path_ndx >= path.size())
-        return false;
-    if (table->get_index_in_group() >= modified.size() && path_ndx + 1 == path.size())
+    if (depth > 16)  // arbitrary limit
         return false;
 
-    auto col = path[path_ndx];
-    auto target = table->get_link_target(col);
-
-    if (table->get_column_type(col) == type_Link) {
-        auto dst = table->get_link(col, idx);
-        if (target->get_index_in_group() < modified.size()) {
-            auto const& changes = modified[target->get_index_in_group()];
-            map_moves(dst, changes);
-            if (changes.changed.count(dst))
-                return true;
-        }
-        return check_path(target, dst, path, path_ndx + 1, modified);
+    size_t table_ndx = table.get_index_in_group();
+    if (table_ndx < modified.size()) {
+        auto const& changes = modified[table_ndx];
+        map_moves(idx, changes);
+        if (changes.changed.count(idx))
+            return true;
     }
-    REALM_ASSERT(table->get_column_type(col) == type_LinkList);
 
-    auto lvr = table->get_linklist(col, idx);
-    if (target->get_index_in_group() < modified.size()) {
-        auto const& changes = modified[target->get_index_in_group()];
-        for (size_t i = 0; i < lvr->size(); ++i) {
-            size_t dst = lvr->get(i).get_index();
-            map_moves(dst, changes);
-            if (changes.changed.count(dst))
-                return true;
-            if (check_path(target, dst, path, path_ndx + 1, modified))
+    for (size_t i = 0, count = table.get_column_count(); i < count; ++i) {
+        auto type = table.get_column_type(i);
+        if (type == type_Link) {
+            auto& target = *table.get_link_target(i);
+            auto dst = table.get_link(i, idx);
+            return row_did_change(target, dst, modified, depth + 1);
+        }
+        if (type != type_LinkList)
+            continue;
+
+        auto& target = *table.get_link_target(i);
+        auto lvr = table.get_linklist(i, idx);
+        for (size_t j = 0; j < lvr->size(); ++j) {
+            size_t dst = lvr->get(j).get_index();
+            if (row_did_change(target, dst, modified, depth + 1))
                 return true;
         }
+    }
+
+    return false;
+}
+
+std::vector<AsyncQueryChange> AsyncQuery::calculate_changes(size_t table_ndx, std::vector<ChangeInfo> const& modified_rows, bool sort) const noexcept
+{
+    auto changes = table_ndx < modified_rows.size() ? &modified_rows[table_ndx] : nullptr;
+
+    auto do_calculate_changes = [&](auto const& new_rows) {
+        std::vector<AsyncQueryChange> changeset;
+        size_t i = 0, j = 0;
+        while (i < m_handed_over_rows.size() && j < new_rows.size()) {
+            auto old_index = m_handed_over_rows[i];
+            auto new_index = new_rows[j];
+            if (changes && !sort) {
+                if (map_moves(new_index, *changes))
+                    changeset.push_back({-1ULL, -1ULL}); // FIXME
+            }
+            if (old_index == new_index) {
+                if (row_did_change(*m_query->get_table(), old_index, modified_rows))
+                    changeset.push_back({i, i}); // FIXME: not i, j because scheme is dumb
+                ++i;
+                ++j;
+            }
+            else if (old_index < new_index) {
+                changeset.push_back({i, -1ULL});
+                ++i;
+            }
+            else {
+                changeset.push_back({-1ULL, j});
+                ++j;
+            }
+        }
+
+        for (; i < m_handed_over_rows.size(); ++i)
+            changeset.push_back({i, -1ULL});
+        for (; j < m_tv.size(); ++j)
+            changeset.push_back({-1ULL, j});
+
+        return changeset;
+    };
+
+    if (sort && changes && !changes->moves.empty()) {
+        std::vector<size_t> new_rows;
+        for (size_t i = 0; i < m_tv.size(); ++i) {
+            auto ndx = m_tv[i].get_index();
+            map_moves(ndx, *changes);
+            new_rows.push_back(ndx);
+        }
+        if (sort) {
+            std::sort(begin(new_rows), end(new_rows));
+        }
+        return do_calculate_changes(new_rows);
     }
     else {
-        for (size_t i = 0; i < lvr->size(); ++i) {
-            size_t dst = lvr->get(i).get_index();
-            if (check_path(target, dst, path, path_ndx + 1, modified))
-                return true;
-        }
+        struct {
+            TableView const& tv;
+
+            size_t size() const { return tv.size(); }
+            size_t operator[](size_t i) const { return tv[i].get_index(); }
+        } adaptor{m_tv};
+        return do_calculate_changes(adaptor);
     }
-
-    return false;
-}
-
-bool AsyncQuery::results_did_change(size_t table_ndx, std::vector<ChangeInfo> const& modified_rows) const noexcept
-{
-    if (!m_initial_run_complete)
-        return true;
-    if (m_tv.size() != m_handed_over_rows.size())
-        return true;
-
-    if (table_ndx < modified_rows.size()) {
-        auto const& changes = modified_rows[table_ndx];
-
-        for (size_t i = 0; i < m_tv.size(); ++i) {
-            auto idx = m_tv[i].get_index();
-            map_moves(idx, changes);
-            if (m_handed_over_rows[i] != idx)
-                return true;
-            if (changes.changed.count(idx))
-                return true;
-        }
-    }
-
-    // Check if there are any linked observations at all
-    std::set<size_t> watched_tables;
-    for (auto const& cb : m_callbacks) {
-        for (auto const& colpath : cb.columns_to_watch) {
-            auto table = m_query->get_table();
-            for (auto col : colpath) {
-                auto target = table->get_link_target(col);
-                watched_tables.insert(target->get_index_in_group());
-                table = target;
-            }
-        }
-    }
-
-    if (watched_tables.empty()) {
-        return false;
-    }
-
-    // Check if any of the observed linked tables changed
-    bool any_watched_changed = false;
-    for (auto table_ndx : watched_tables) {
-        if (table_ndx >= modified_rows.size())
-            continue;
-        if (modified_rows[table_ndx].changed.empty())
-            continue;
-        any_watched_changed = true;
-        break;
-    }
-
-    if (!any_watched_changed)
-        return false;
-
-    std::vector<std::vector<size_t>> paths_to_check;
-
-    for (auto const& cb : m_callbacks) {
-        for (auto const& colpath : cb.columns_to_watch) {
-            auto table = m_query->get_table();
-            for (auto col : colpath) {
-                auto target = table->get_link_target(col);
-                if (modified_rows.size() > target->get_index_in_group()) {
-                    auto const& changes = modified_rows[target->get_index_in_group()];
-                    if (!changes.changed.empty()) {
-                        paths_to_check.push_back(colpath);
-                        goto break2;
-
-                    }
-                }
-                table = target;
-            }
-            break2:;
-        }
-    }
-
-    auto table = m_query->get_table();
-    for (auto idx : m_handed_over_rows) {
-        for (auto const& path : paths_to_check) {
-            if (check_path(table, idx, path, 0, modified_rows))
-                return true;
-        }
-    }
-
-    return false;
 }
 
 void AsyncQuery::run(std::vector<ChangeInfo> const& modified_rows)
@@ -309,18 +280,22 @@ void AsyncQuery::run(std::vector<ChangeInfo> const& modified_rows)
 //    }
 
     m_tv = m_query->find_all();
-    if (m_sort) {
-        m_tv.sort(m_sort.columnIndices, m_sort.ascending);
-    }
 
-    if (!results_did_change(table_ndx, modified_rows)) {
-        m_tv = TableView();
-        return;
+    if (m_initial_run_complete) {
+        m_new_changes = calculate_changes(table_ndx, modified_rows, (bool)m_sort);
+        if (m_new_changes.empty()) {
+            m_tv = TableView();
+            return;
+        }
     }
 
     m_handed_over_rows.clear();
     for (size_t i = 0; i < m_tv.size(); ++i)
         m_handed_over_rows.push_back(m_tv[i].get_index());
+
+    if (m_sort) {
+        m_tv.sort(m_sort.columnIndices, m_sort.ascending);
+    }
 }
 
 void AsyncQuery::prepare_handover()
@@ -336,6 +311,10 @@ void AsyncQuery::prepare_handover()
     m_initial_run_complete = true;
     m_handed_over_table_version = m_tv.outside_version();
     m_tv_handover = m_sg->export_for_handover(m_tv, MutableSourcePayload::Move);
+
+    // FIXME: this is not actually correct
+    m_changes.insert(m_changes.end(), m_new_changes.begin(), m_new_changes.end());
+    m_new_changes.clear();
 
     // detach the TableView as we won't need it again and keeping it around
     // makes advance_read() much more expensive
@@ -396,7 +375,7 @@ void AsyncQuery::call_callbacks()
     REALM_ASSERT(is_for_current_thread());
 
     while (auto fn = next_callback()) {
-        fn({}, m_error);
+        fn(m_changes, m_error);
     }
 
     if (m_error) {
@@ -405,6 +384,7 @@ void AsyncQuery::call_callbacks()
         std::lock_guard<std::mutex> callback_lock(m_callback_mutex);
         m_callbacks.clear();
     }
+    m_changes.clear();
 }
 
 std::function<void (std::vector<AsyncQueryChange>, std::exception_ptr)> AsyncQuery::next_callback()

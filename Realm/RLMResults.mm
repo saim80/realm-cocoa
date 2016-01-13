@@ -616,11 +616,14 @@ static void RLMPrecondition(bool condition, NSString *format, ...) {
             }
         }
         else {
+            auto to_nsnotfound = [](size_t i) {
+                return i + 1 == 0 ? NSNotFound : i;
+            };
             NSMutableArray *objcChanges = [NSMutableArray new];
             for (auto change : changes) {
                 auto conv = [[RLMObjectChange alloc] init];
-                conv.oldIndex = change.old_index;
-                conv.newIndex = change.new_index;
+                conv.oldIndex = to_nsnotfound(change.old_index);
+                conv.newIndex = to_nsnotfound(change.new_index);
                 [objcChanges addObject:conv];
             }
             block(self, objcChanges, nil);
