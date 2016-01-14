@@ -195,65 +195,73 @@ static bool row_did_change(Table& table, size_t idx, std::vector<ChangeInfo> con
     return false;
 }
 
-std::vector<AsyncQueryChange> AsyncQuery::calculate_changes(size_t table_ndx, std::vector<ChangeInfo> const& modified_rows, bool sort) const noexcept
+std::vector<AsyncQueryChange> AsyncQuery::calculate_changes(size_t table_ndx,
+                                                            std::vector<ChangeInfo> const& modified_rows,
+                                                            bool sort)
 {
     auto changes = table_ndx < modified_rows.size() ? &modified_rows[table_ndx] : nullptr;
 
-    auto do_calculate_changes = [&](auto const& new_rows) {
+    auto do_calculate_changes = [&](auto const& old_rows, auto const& new_rows) {
         std::vector<AsyncQueryChange> changeset;
         size_t i = 0, j = 0;
-        while (i < m_handed_over_rows.size() && j < new_rows.size()) {
-            auto old_index = m_handed_over_rows[i];
+        int shift = 0;
+        while (i < old_rows.size() && j < new_rows.size()) {
+            auto old_index = old_rows[i];
             auto new_index = new_rows[j];
-            if (changes && !sort) {
-                if (map_moves(new_index, *changes))
-                    changeset.push_back({-1ULL, -1ULL}); // FIXME
-            }
-            if (old_index == new_index) {
-                if (row_did_change(*m_query->get_table(), old_index, modified_rows))
-                    changeset.push_back({i, i}); // FIXME: not i, j because scheme is dumb
+            if (old_index.first == new_index.first) {
+                if (old_index.second != new_index.second + shift)
+                    changeset.push_back({old_index.second, new_index.second + shift});
+                else if (row_did_change(*m_query->get_table(), old_index.first, modified_rows))
+                    changeset.push_back({old_index.second, old_index.second}); // FIXME: not i, j because scheme is dumb
                 ++i;
                 ++j;
             }
-            else if (old_index < new_index) {
-                changeset.push_back({i, -1ULL});
+            else if (old_index.first < new_index.first) {
+                changeset.push_back({old_index.second, -1ULL});
+                ++shift;
                 ++i;
             }
             else {
-                changeset.push_back({-1ULL, j});
+                changeset.push_back({-1ULL, new_index.second});
+                --shift;
                 ++j;
             }
         }
 
-        for (; i < m_handed_over_rows.size(); ++i)
-            changeset.push_back({i, -1ULL});
-        for (; j < m_tv.size(); ++j)
-            changeset.push_back({-1ULL, j});
+        for (; i < old_rows.size(); ++i)
+            changeset.push_back({old_rows[i].second, -1ULL});
+        for (; j < new_rows.size(); ++j)
+            changeset.push_back({-1ULL, new_rows[j].second});
 
         return changeset;
     };
 
-    if (sort && changes && !changes->moves.empty()) {
-        std::vector<size_t> new_rows;
+    std::vector<std::pair<size_t, size_t>> old_rows;
+    for (size_t i = 0; i < m_previous_rows.size(); ++i) {
+        auto ndx = m_previous_rows[i];
+        old_rows.push_back({ndx, i});
+    }
+    std::stable_sort(begin(old_rows), end(old_rows), [](auto& lft, auto& rgt) {
+        return lft.first < rgt.first;
+    });
+
+    // FIXME: optim: check if there's actually any outgoing links
+//    if (changes && (!changes->moves.empty() || !changes->changed.empty())) {
+        std::vector<std::pair<size_t, size_t>> new_rows;
         for (size_t i = 0; i < m_tv.size(); ++i) {
             auto ndx = m_tv[i].get_index();
-            map_moves(ndx, *changes);
-            new_rows.push_back(ndx);
+            if (changes)
+                map_moves(ndx, *changes);
+            new_rows.push_back({ndx, i});
         }
-        if (sort) {
-            std::sort(begin(new_rows), end(new_rows));
-        }
-        return do_calculate_changes(new_rows);
-    }
-    else {
-        struct {
-            TableView const& tv;
-
-            size_t size() const { return tv.size(); }
-            size_t operator[](size_t i) const { return tv[i].get_index(); }
-        } adaptor{m_tv};
-        return do_calculate_changes(adaptor);
-    }
+        std::stable_sort(begin(new_rows), end(new_rows), [](auto& lft, auto& rgt) {
+            return lft.first < rgt.first;
+        });
+        return do_calculate_changes(old_rows, new_rows);
+//    }
+//    else {
+//        return do_calculate_changes(old_rows, old_rows);
+//    }
 }
 
 void AsyncQuery::run(std::vector<ChangeInfo> const& modified_rows)
@@ -282,6 +290,9 @@ void AsyncQuery::run(std::vector<ChangeInfo> const& modified_rows)
 //    }
 
     m_tv = m_query->find_all();
+    if (m_sort) {
+        m_tv.sort(m_sort.columnIndices, m_sort.ascending);
+    }
 
     if (m_initial_run_complete) {
         m_new_changes = calculate_changes(table_ndx, modified_rows, (bool)m_sort);
@@ -291,13 +302,10 @@ void AsyncQuery::run(std::vector<ChangeInfo> const& modified_rows)
         }
     }
 
-    m_handed_over_rows.clear();
+    m_previous_rows.clear();
+    m_previous_rows.resize(m_tv.size());
     for (size_t i = 0; i < m_tv.size(); ++i)
-        m_handed_over_rows.push_back(m_tv[i].get_index());
-
-    if (m_sort) {
-        m_tv.sort(m_sort.columnIndices, m_sort.ascending);
-    }
+        m_previous_rows[i] = m_tv[i].get_index();
 }
 
 void AsyncQuery::prepare_handover()

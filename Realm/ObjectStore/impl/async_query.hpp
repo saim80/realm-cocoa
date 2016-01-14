@@ -109,7 +109,7 @@ private:
     uint_fast64_t m_handed_over_table_version = -1;
     uint_fast64_t m_delievered_table_version = -1;
 
-    std::vector<size_t> m_handed_over_rows;
+    std::vector<size_t> m_previous_rows;
 
     // Iteration variable for looping over callbacks
     // remove_callback() updates this when needed
@@ -129,7 +129,7 @@ private:
     std::function<void (std::vector<AsyncQueryChange>, std::exception_ptr)> next_callback();
     size_t next_token();
 
-    std::vector<AsyncQueryChange> calculate_changes(size_t table_ndx, std::vector<ChangeInfo> const& modified_rows, bool sort) const noexcept;
+    std::vector<AsyncQueryChange> calculate_changes(size_t table_ndx, std::vector<ChangeInfo> const& modified_rows, bool sort);
 };
 
 } // namespace _impl
