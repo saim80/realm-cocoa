@@ -615,6 +615,9 @@ static void RLMPrecondition(bool condition, NSString *format, ...) {
                 block(nil, nil, error);
             }
         }
+        else if (changes.empty()) {
+            block(self, nil, nil);
+        }
         else {
             auto to_nsnotfound = [](size_t i) {
                 return i + 1 == 0 ? NSNotFound : i;
