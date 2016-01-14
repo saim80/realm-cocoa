@@ -13,6 +13,11 @@ x.x.x Release notes (yyyy-MM-dd)
 * Fail with `RLMErrorFileNotFound` instead of the more generic `RLMErrorFileAccess`,
   if no file was found when a realm was opened as read-only or if the directory part
   of the specified path was not found when a copy should be written. 
+* Add `addNotificationBlock` to `RLMResults`, `Results`, `RLMArray`, and
+  `List`, which calls the given block whenever the collection changes.
+* Do a lot of the work for keeping `RLMResults`/`Results` up-to-date after
+  write transactions on a background thread to help avoid blocking the main
+  thread.
 
 ### Bugfixes
 
